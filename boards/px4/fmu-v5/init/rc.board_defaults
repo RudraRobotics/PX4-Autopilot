@@ -23,6 +23,9 @@ then
 	param set UAVCAN_ENABLE 2
 fi
 
+# Use always FMU as RC input
+param set SYS_RC_SOURCE 2
+
 set LOGGER_BUF 64
 
 rgbled_pwm start
