@@ -91,7 +91,7 @@ static int	do_show_quiet(const char *param_name);
 static int	do_show_index(const char *index, bool used_index);
 static void	do_show_print(void *arg, param_t param);
 static void	do_show_print_for_airframe(void *arg, param_t param);
-static int	do_set(const char *name, const char *val, bool fail_on_not_found);
+static int	do_set(const char *name, const char *val, bool fail_on_not_found, bool set_default = false);
 static int	do_compare(const char *name, char *vals[], unsigned comparisons, enum COMPARE_OPERATOR cmd_op,
 			   enum COMPARE_ERROR_LEVEL err_level);
 static int 	do_reset_all(const char *excludes[], int num_excludes);
@@ -148,6 +148,10 @@ $ reboot
 	PRINT_MODULE_USAGE_COMMAND_DESCR("status", "Print status of parameter system");
 
 	PRINT_MODULE_USAGE_COMMAND_DESCR("set", "Set parameter to a value");
+	PRINT_MODULE_USAGE_ARG("<param_name> <value>", "Parameter name and value to set", false);
+	PRINT_MODULE_USAGE_ARG("fail", "If provided, let the command fail if param is not found", true);
+
+	PRINT_MODULE_USAGE_COMMAND_DESCR("set-default", "Set parameter default to a value");
 	PRINT_MODULE_USAGE_ARG("<param_name> <value>", "Parameter name and value to set", false);
 	PRINT_MODULE_USAGE_ARG("fail", "If provided, let the command fail if param is not found", true);
 
@@ -281,6 +285,22 @@ param_main(int argc, char *argv[])
 
 			} else {
 				PX4_ERR("not enough arguments.\nTry 'param set PARAM_NAME 3 [fail]'");
+				return 1;
+			}
+		}
+
+		if (!strcmp(argv[1], "set-default")) {
+			if (argc >= 5) {
+				/* if the fail switch is provided, fails the command if not found */
+				bool fail = !strcmp(argv[4], "fail");
+
+				return do_set(argv[2], argv[3], fail, true);
+
+			} else if (argc >= 4) {
+				return do_set(argv[2], argv[3], false, true);
+
+			} else {
+				PX4_ERR("not enough arguments.\nTry 'param set-default PARAM_NAME 3 [fail]'");
 				return 1;
 			}
 		}
@@ -714,7 +734,7 @@ do_show_print_for_airframe(void *arg, param_t param)
 }
 
 static int
-do_set(const char *name, const char *val, bool fail_on_not_found)
+do_set(const char *name, const char *val, bool fail_on_not_found, bool set_default)
 {
 	int32_t i;
 	float f;
@@ -744,7 +764,7 @@ do_set(const char *name, const char *val, bool fail_on_not_found)
 					    param_value_unsaved(param) ? '*' : (param_value_is_default(param) ? ' ' : '+'),
 					    param_name(param));
 				PARAM_PRINT("curr: %ld", (long)i);
-				param_set(param, &newval);
+				set_default ? param_set_default_value(param, &newval) : param_set(param, &newval);
 				PARAM_PRINT(" -> new: %ld\n", (long)newval);
 			}
 		}
@@ -766,7 +786,7 @@ do_set(const char *name, const char *val, bool fail_on_not_found)
 					    param_value_unsaved(param) ? '*' : (param_value_is_default(param) ? ' ' : '+'),
 					    param_name(param));
 				PARAM_PRINT("curr: %4.4f", (double)f);
-				param_set(param, &newval);
+				set_default ? param_set_default_value(param, &newval) : param_set(param, &newval);
 				PARAM_PRINT(" -> new: %4.4f\n", (double)newval);
 			}
 
